@@ -247,7 +247,7 @@ def evaluate_policy(policy, starting_seed, envr=FootballSkillsEnv, num_episodes=
         rewards_across_episodes.append(episode_return)
     rewards_across_episodes = np.array(rewards_across_episodes, dtype=float)
     mean = float(rewards_across_episodes.mean())
-    std = float(rewards_across_episodes.std())
+    std = float(rewards_across_episodes.std(ddof=1))
     return mean, std, rewards_across_episodes
 
 def save_policy_gif(policy, filename, seed, envr=FootballSkillsEnv):
