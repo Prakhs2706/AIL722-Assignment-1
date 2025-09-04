@@ -46,60 +46,59 @@ def policy_iteration(envr=FootballSkillsEnv):
     '''
     gamma=0.95
     threshold=1e-6
-    env = envr(render_mode="gif")
-    num_states = env.grid_size*env.grid_size*2
-    num_actions = env.action_space.n
+    env=envr(render_mode="gif")
+    num_states=env.grid_size*env.grid_size*2
+    num_actions=env.action_space.n
     # initializing arbitrary policy (take the action 1 in every state)
-    policy = np.full(num_states, 1, dtype=int)
+    policy=np.full(num_states, 1, dtype=int)
     
     for s in range(num_states):
         if terminal_check(env.index_to_state(s)):
-            policy[s] = -1   # no action to take in terminal state
+            policy[s]=-1   # no action to take in terminal state
 
-    iterations = 0
+    iterations=0
     while True:
         
-        iterations += 1
+        iterations+=1
         # value function of current policy
-        v = policy_evaluation_for_pi(policy,  gamma, threshold)
+        v=policy_evaluation_for_pi(policy,  gamma, threshold)
 
         # policy improvement
-        policy_stable = True
+        policy_stable=True
         for s in range(num_states):
             state = env.index_to_state(s)
             # if in terminal state, do nothing
             if terminal_check(state):
-                policy[s] = -1
+                policy[s]=-1
                 continue
 
             old_action=policy[s]
-
             best_a= None 
             best_q_function=-float('inf')
             sx, sy, _ = state
             for a in range(num_actions):
-                q_function = 0.0
-                transition_call_counter["pi"] += 1
-                transitions_possible = env.get_transitions_at_time(state, a)
+                q_function=0.0
+                transition_call_counter["pi"]+= 1
+                transitions_possible=env.get_transitions_at_time(state, a)
     
 
                 for p, s_next in transitions_possible:
-                    nx, ny, _ = s_next
-                    r = env._get_reward((nx, ny), a, (sx, sy))
+                    nx, ny, _ =s_next
+                    r=env._get_reward((nx, ny), a, (sx, sy))
                     if terminal_check(s_next):
                         v_next = 0.0 
                     else:
                         v_next=v[env.state_to_index(s_next)]
-                    q_function += p * (r + gamma * v_next)
+                    q_function+=p*(r+gamma*v_next)
 
                 
-                if q_function > best_q_function:
+                if q_function>best_q_function:
                     best_q_function, best_a = q_function, a
 
             
-            policy[s] = best_a
-            if policy[s] != old_action:
-                policy_stable = False
+            policy[s]=best_a
+            if policy[s]!=old_action:
+                policy_stable=False
 
         
         if policy_stable:
@@ -110,7 +109,7 @@ def policy_iteration(envr=FootballSkillsEnv):
 
 def policy_evaluation_for_pi(policy, gamma, threshold, envr=FootballSkillsEnv):
     env=envr(render_mode="gif")
-    num_states = env.grid_size*env.grid_size*2
+    num_states=env.grid_size*env.grid_size*2
     # initialize value function dont need to check for terminal states as it is already 0
     v=np.zeros(num_states,dtype=float)
 
@@ -121,7 +120,6 @@ def policy_evaluation_for_pi(policy, gamma, threshold, envr=FootballSkillsEnv):
             state=env.index_to_state(s)
             if terminal_check(state):
                 continue
-        
             action=policy[s]
             transition_call_counter["pi"] += 1
             transition_dynamics=env.get_transitions_at_time(state, action)
@@ -145,22 +143,22 @@ def policy_evaluation_for_pi(policy, gamma, threshold, envr=FootballSkillsEnv):
     return v
 
 def value_iteration(envr=FootballSkillsEnv):
-    env = envr(render_mode="gif")
-    gamma = 0.95
-    threshold = 1e-6
+    env=envr(render_mode="gif")
+    gamma=0.95
+    threshold=1e-6
 
-    num_states = env.grid_size * env.grid_size * 2
-    num_actions = env.action_space.n
+    num_states=env.grid_size * env.grid_size * 2
+    num_actions=env.action_space.n
 
-    # value function initialization
-    v = np.zeros(num_states, dtype=float)
+    # value function initialization (arbitrary)
+    v=np.zeros(num_states, dtype=float)
 
-    iterations = 0
+    iterations=0
     while True:
-        iterations += 1
-        delta = 0.0
+        iterations+=1
+        delta=0.0
         for s in range(num_states):
-            state = env.index_to_state(s)
+            state=env.index_to_state(s)
             # value for terminal states again 0
             if terminal_check(state):
                 v[s] = 0.0
@@ -170,84 +168,84 @@ def value_iteration(envr=FootballSkillsEnv):
             best_q_function = -float('inf')
 
             for action in range(num_actions):
-                q_function = 0.0
-                transition_call_counter["vi"] += 1
-                transitions = env.get_transitions_at_time(state, action)
+                q_function=0.0
+                transition_call_counter["vi"]+= 1
+                transitions=env.get_transitions_at_time(state, action)
                 for p, s_next in transitions:
-                    nx, ny, _ = s_next
-                    r = env._get_reward((nx, ny), action, (sx, sy))
+                    nx, ny, _ =s_next
+                    r=env._get_reward((nx, ny), action, (sx, sy))
                     if terminal_check(s_next):
-                        v_next = 0.0
+                        v_next=0.0
                     else:
-                        v_next = v[env.state_to_index(s_next)]
-                    q_function += p * (r + gamma * v_next)
-                if q_function > best_q_function:
-                    best_q_function = q_function
+                        v_next=v[env.state_to_index(s_next)]
+                    q_function+=p*(r + gamma * v_next)
+                if q_function>best_q_function:
+                    best_q_function=q_function
 
-            delta = max(delta, abs(best_q_function - v[s]))
-            v[s] = best_q_function
+            delta=max(delta, abs(best_q_function - v[s]))
+            v[s]=best_q_function
 
-        if delta < threshold:
+        if delta<threshold:
             break
 
-    # policy extraction from the optimal value function
-    policy = np.full(num_states, -1, dtype=int)
+    # policy extraction from the optimal value function can be done in a single sweep, but I did it seperately here once
+    policy=np.full(num_states, -1, dtype=int)
     for s in range(num_states):
-        state = env.index_to_state(s)
+        state=env.index_to_state(s)
         if terminal_check(state):
-            policy[s] = -1
+            policy[s]=-1
             continue
 
         sx, sy, _ = state
-        best_action = 0
-        best_q_function = -float('inf')
+        best_action=0
+        best_q_function=-float('inf')
         for action in range(num_actions):
-            q_function = 0.0
+            q_function=0.0
             transition_call_counter["vi"] += 1
-            transitions = env.get_transitions_at_time(state, action)
+            transitions=env.get_transitions_at_time(state, action)
             for p, s_next in transitions:
-                nx, ny, _ = s_next
-                r = env._get_reward((nx, ny), action, (sx, sy))
+                nx, ny, _=s_next
+                r=env._get_reward((nx, ny), action, (sx, sy))
                 if terminal_check(s_next):
-                    v_next = 0.0
+                    v_next=0.0
                 else:
-                    v_next = v[env.state_to_index(s_next)]
-                q_function += p * (r + gamma * v_next)
-            if q_function > best_q_function:
-                best_q_function, best_action = q_function, action
-        policy[s] = best_action
+                    v_next=v[env.state_to_index(s_next)]
+                q_function+=p*(r+gamma*v_next)
+            if q_function>best_q_function:
+                best_q_function, best_action=q_function, action
+        policy[s]=best_action
 
-    return policy, v, iterations
+    return policy,v,iterations
 
 
 def run_episode_using_policy(policy,seed,envr=FootballSkillsEnv):
     
-    env = envr(render_mode="gif")
+    env=envr(render_mode="gif")
     obs, _ = env.reset(seed=seed)
-    total_reward = 0.0
-    done = False
-    truncated = False
-    while not (done or truncated):
-        state = obs
+    total_reward=0.0
+    done=False
+    truncated=False
+    while not(done or truncated):
+        state=obs
         # if in terminal state, break
         if terminal_check(state):
             break
-        s_idx = env.state_to_index(state)
-        action = policy[s_idx]
-        obs, reward, done, truncated, _ = env.step(action)
-        total_reward += reward
+        s_idx=env.state_to_index(state)
+        action=policy[s_idx]
+        obs,reward,done,truncated, _=env.step(action)
+        total_reward+=reward
     return total_reward
 
 
 def evaluate_policy(policy, starting_seed, envr=FootballSkillsEnv, num_episodes=20):
-    rewards_across_episodes = []
+    rewards_across_episodes=[]
     for i in range(num_episodes):
-        seed_episode = starting_seed+i
-        episode_return = run_episode_using_policy(policy, envr=envr, seed=seed_episode)
+        seed_episode=starting_seed+i
+        episode_return=run_episode_using_policy(policy,envr=envr,seed=seed_episode)
         rewards_across_episodes.append(episode_return)
-    rewards_across_episodes = np.array(rewards_across_episodes, dtype=float)
-    mean = float(rewards_across_episodes.mean())
-    std = float(rewards_across_episodes.std(ddof=1))
+    rewards_across_episodes=np.array(rewards_across_episodes,dtype=float)
+    mean=float(rewards_across_episodes.mean())
+    std=float(rewards_across_episodes.std(ddof=1))
     return mean, std, rewards_across_episodes
 
 def save_policy_gif(policy, filename, seed, envr=FootballSkillsEnv):
@@ -256,30 +254,31 @@ def save_policy_gif(policy, filename, seed, envr=FootballSkillsEnv):
 
 
 if __name__=="__main__":
-    optimal_policy_pi, value_function_pi, num_iterations_pi = policy_iteration()
-    optimal_policy_vi, value_function_vi, num_iterations_vi = value_iteration()
-    print("Optimal Policy:", optimal_policy_pi)
-    print("Value Function:", value_function_pi)
-    print("Number of iterations:", num_iterations_pi)
-    print("Optimal Policy:", optimal_policy_vi)
-    print("Value Function:", value_function_vi)
-    print("Number of iterations:", num_iterations_vi)
-    print("Total transition calls in Policy Iteration:", transition_call_counter["pi"])
-    print("Total transition calls in Value Iteration:", transition_call_counter["vi"])
+    optimal_policy_pi, value_function_pi, num_iterations_pi=policy_iteration()
+    optimal_policy_vi, value_function_vi, num_iterations_vi=value_iteration()
+    print("Optimal Policy due to policy iteration", optimal_policy_pi)
+    print("Value Function due to policy iteration", value_function_pi)
+    print("Number of iterations in policy iteration", num_iterations_pi)
+    print("Optimal Policy due to value iteration", optimal_policy_vi)
+    print("Value Function due to value iteration", value_function_vi)
+    print("Number of iterations in value iteration", num_iterations_vi)
+    print("Total transition calls in Value Iteration to env.get transitions at time", transition_call_counter["vi"])
+    print("Total transition calls in Policy Iteration to env.get transitions at time", transition_call_counter["pi"])
     if np.array_equal(optimal_policy_pi, optimal_policy_vi):
         print("Both algorithms yield the same optimal policy")
     else:
         print("Optimal policies differ between algorithms")
 
-    # Evaluate both policies for 20 episodes with different seeds
-    pi_mean, pi_std, _ = evaluate_policy(optimal_policy_pi, envr=FootballSkillsEnv, num_episodes=20, starting_seed=0)
-    vi_mean, vi_std, _ = evaluate_policy(optimal_policy_vi, envr=FootballSkillsEnv, num_episodes=20, starting_seed=1000)
+    # evaluating both policies for 20 episodes with different seeds
+    # they start from the same base seed (0)
+    pi_mean,pi_std,_=evaluate_policy(optimal_policy_pi,envr=FootballSkillsEnv,num_episodes=20,starting_seed=0)
+    vi_mean,vi_std,_=evaluate_policy(optimal_policy_vi,envr=FootballSkillsEnv,num_episodes=20,starting_seed=0)
 
     print("Policy Evaluation over 20 episodes:")
     print(f"Policy Iteration - Mean Reward: {pi_mean}, Standard Deviation: {pi_std}")
-    print(f"Value Iteration  -> Mean Reward: {vi_mean}, Standard Deviation: {vi_std}")
+    print(f"Value Iteration  - Mean Reward: {vi_mean}, Standard Deviation: {vi_std}")
     # Save GIFs of both policies for different seeds
-    save_policy_gif(optimal_policy_pi, filename="policy_iteration.gif", seed=10, envr=FootballSkillsEnv)
-    save_policy_gif(optimal_policy_vi, filename="value_iteration.gif", seed=1010, envr=FootballSkillsEnv)
+    save_policy_gif(optimal_policy_pi, filename="policy_iteration.gif", seed=0, envr=FootballSkillsEnv)
+    save_policy_gif(optimal_policy_vi, filename="value_iteration.gif", seed=0, envr=FootballSkillsEnv)
     
     

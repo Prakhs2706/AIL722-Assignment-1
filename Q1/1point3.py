@@ -192,7 +192,7 @@ def save_policy_gif(policy, filename, envr=FootballSkillsEnv, horizon=40):
     env = envr(render_mode="gif", degrade_pitch=True)
     if isinstance(policy, np.ndarray) and policy.ndim == 1:
         policy = np.tile(policy, (horizon, 1))  # make it 2D
-    env.get_gif(policy, filename=filename)
+    env.get_gif(policy, filename=filename) 
 
 
 
@@ -229,7 +229,7 @@ if __name__=="__main__":
     # vi_mean, vi_std, _ = evaluate_policy(optimal_policy_vi, envr=FootballSkillsEnv, num_episodes=20, starting_seed=1000)
 
     # print("Policy Evaluation over 20 episodes:")
-    # print(f"Policy Iteration - Mean Reward: {pi_mean}, Standard Deviation: {pi_std}")
+    # print(f"Policy Iteration - Mean Reward: {pi_mean}, Standard Deviation: {pi_std
     # print(f"Value Iteration  -> Mean Reward: {vi_mean}, Standard Deviation: {vi_std}")
     # # Save GIFs of both policies for different seeds
     # save_policy_gif(optimal_policy_pi, filename="policy_iteration.gif", seed=10, envr=FootballSkillsEnv)

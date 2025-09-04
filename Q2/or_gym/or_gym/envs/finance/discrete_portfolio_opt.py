@@ -63,7 +63,7 @@ class DiscretePortfolioOptEnv(gym.Env):
             prices=kwargs["prices"]
             asset1mean=np.array(prices)
             asset1mean=asset1mean.reshape(1,-1)
-        else:  
+        else:
             print("Asset prices not found. Using default prices. Please check your arguments!")
             asset1mean = np.array([4, 1, 4, 5 , 6, 6, 6, 6, 6, 6]).reshape(1, -1)  # Up
 
