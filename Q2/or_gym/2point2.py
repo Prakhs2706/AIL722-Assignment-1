@@ -51,12 +51,12 @@ class ValueIterationOnlineKnapsack:
                 updated_weight=0.0
                 # as 2 actions consider rejecting it too
                 reject_val = future_v[weight]
-                # the weights than can appear
+                # the weights that can appear
                 for j in range(len(weights_array)):
                     current_weight=weights_array[j]
                     current_value=values_array[j]
                     if weight+current_weight<=max_weight:
-                        accept_val = current_value + future_v[weight+current_weight]
+                        accept_val=current_value+future_v[weight+current_weight]
                     else:
                         accept_val=0.0
                     updated_weight+=probs_array[j]*max(accept_val, reject_val)
@@ -71,7 +71,7 @@ class ValueIterationOnlineKnapsack:
         if isinstance(state, dict) and 'state' in state:
             state = state['state']
         current_weight = state[0]
-        # current_item = state[1]
+        current_item = state[1]
         current_item_weight=state[2]
         current_item_value=state[3]
         t=self.env.step_counter
@@ -79,9 +79,9 @@ class ValueIterationOnlineKnapsack:
             return 0  # no steps left
         if current_weight + current_item_weight > self.max_weight:
             return 0
-        reject = self.v[t + 1, current_weight]
-        accept = current_item_value + self.v[t + 1, current_weight + current_item_weight]
-        if accept > reject:
+        reject=self.v[t + 1, current_weight]
+        accept=current_item_value + self.v[t + 1, current_weight + current_item_weight]
+        if accept>reject:
             return 1
         else:
             return 0
@@ -180,18 +180,18 @@ class PolicyIterationOnlineKnapsack:
         
 
     def run_policy_iteration(self, max_iterations=1000):
-        iterations = 0
-        horizon_length = self.horizon_length
-        max_weight = self.max_weight
-        weights_array = self.weights_array
+        iterations=0
+        horizon_length=self.horizon_length
+        max_weight=self.max_weight
+        weights_array=self.weights_array
 
         if self.policy is None:
-            self.policy = np.zeros((horizon_length, max_weight + 1, len(weights_array)), dtype=float)
+            self.policy=np.zeros((horizon_length, max_weight + 1, len(weights_array)), dtype=float)
 
-        while iterations < max_iterations:
+        while iterations<max_iterations:
             self.policy_evaluation()
-            policy_stable = self.policy_improvement()
-            iterations += 1
+            policy_stable=self.policy_improvement()
+            iterations+=1
             if policy_stable:
                 break
         return self.v
@@ -202,14 +202,14 @@ class PolicyIterationOnlineKnapsack:
         else:
             s = state
 
-        current_weight = s[0]
-        current_item = s[1]
-        current_item_weight = s[2]
+        current_weight=s[0]
+        current_item=s[1]
+        current_item_weight=s[2]
 
-        t = min(self.env.step_counter, self.horizon_length - 1)
-        if current_weight + current_item_weight > self.max_weight:
+        t = min(self.env.step_counter,self.horizon_length-1)
+        if current_weight+current_item_weight>self.max_weight:
             return 0
-        return self.policy[t, current_weight, current_item]
+        return self.policy[t,current_weight,current_item]
 
 
 def evaluate_policy(env, agent, seed, render_trajectory=False):
@@ -217,9 +217,9 @@ def evaluate_policy(env, agent, seed, render_trajectory=False):
     np.random.seed(seed)
     env.set_seed(seed)
     
-    state = env._RESET()
-    total_value = 0
-    curve = []
+    state=env._RESET()
+    total_value=0
+    curve=[]
     for _ in range(env.step_limit):
         # Print the weight and value of the currently presented item
         if isinstance(state, dict) and 'state' in state:
@@ -253,90 +253,79 @@ def plot_trajectories(seed_to_curve):
 
 
 def plot_value_heatmaps(agent):
-    """
-    Generates more conventional heatmaps using Seaborn to visualize the policy advantage.
-    """
     T, B = agent.horizon_length, agent.max_weight
     W = agent.weights_array
     Vals = agent.values_array
     v = agent.v
 
-    if v is None:
-        print("Agent has not been trained. Run value_iteration or policy_iteration first.")
-        return
-
-    # Use the value function at t=1 (for the first decision at t=0)
+    # final value at t=0 uses continuation v[1]
     baseV = v[1]
-    delta = np.zeros((B + 1, len(W)), dtype=float)
 
-    # Calculate the "advantage" of accepting over rejecting for each state (w, j)
+    # value of each state (w, j) under the optimal action at t=0
+    value_mat = np.zeros((B + 1, len(W)), dtype=float)
     for w in range(B + 1):
-        reject_value = baseV[w]
+        reject_val = baseV[w]
         for j in range(len(W)):
             wj = int(W[j])
-            vj = int(Vals[j])
+            vj = float(Vals[j])
             if w + wj <= B:
-                accept_value = vj + baseV[w + wj]
+                accept_val = vj + baseV[w + wj]
             else:
-                accept_value = -np.inf  # Effectively, this action is not possible
-            delta[w, j] = accept_value - reject_value
+                accept_val = -np.inf
+            value_mat[w, j] = max(reject_val, accept_val)
 
-    # Get the sorted order of items based on different metrics
+    # sort x-axis keys in increasing order
     order_by_w = np.argsort(W)
     order_by_v = np.argsort(Vals)
-    # Avoid division by zero for items with value 0
     ratio = W / np.maximum(Vals, 1e-5)
     order_by_ratio = np.argsort(ratio)
 
+    data_w = value_mat[:, order_by_w]
+    data_v = value_mat[:, order_by_v]
+    data_ratio = value_mat[:, order_by_ratio]
+
     fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
-    fig.suptitle("Advantage of Accepting vs. Rejecting an Item at t=0", fontsize=16)
+    fig.suptitle("Final Value Function at t=0 (Optimal Action)")
 
-    # Data for the heatmaps
-    data_w = delta[:, order_by_w]
-    data_v = delta[:, order_by_v]
-    data_ratio = delta[:, order_by_ratio]
+    sns.heatmap(data_w, ax=axes[0], cmap="viridis", cbar_kws={'label': 'State Value'}, xticklabels=False, yticklabels=50)
+    axes[0].set_title("X: weight (increasing)")
+    axes[0].set_xlabel("item weight")
+    axes[0].set_ylabel("current knapsack weight")
 
-    # Plot 1: Sorted by Weight
-    sns.heatmap(data_w, ax=axes[0], cmap="coolwarm", cbar_kws={'label': 'Advantage (Accept - Reject)'},
-                xticklabels=False, yticklabels=50)
-    axes[0].set_title("Items Sorted by Weight")
-    axes[0].set_xlabel("Items (lightest to heaviest)")
-    axes[0].set_ylabel("Current Knapsack Weight")
+    sns.heatmap(data_v, ax=axes[1], cmap="viridis", cbar=False, xticklabels=False, yticklabels=False)
+    axes[1].set_title("X: value (increasing)")
+    axes[1].set_xlabel("item value")
 
-    # Plot 2: Sorted by Value
-    sns.heatmap(data_v, ax=axes[1], cmap="coolwarm", cbar=False,
-                xticklabels=False, yticklabels=False)
-    axes[1].set_title("Items Sorted by Value")
-    axes[1].set_xlabel("Items (lowest to highest value)")
-    
-    # Plot 3: Sorted by Weight/Value Ratio
-    sns.heatmap(data_ratio, ax=axes[2], cmap="coolwarm", cbar=False,
-                xticklabels=False, yticklabels=False)
-    axes[2].set_title("Items Sorted by Weight/Value Ratio")
-    axes[2].set_xlabel("Items (best to worst ratio)")
+    sns.heatmap(data_ratio, ax=axes[2], cmap="viridis", cbar=False, xticklabels=False, yticklabels=False)
+    axes[2].set_title("X: weight/value (increasing)")
+    axes[2].set_xlabel("weight/value ratio")
 
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
 
 
 if __name__ == "__main__":
-    seeds = [0, 1, 2, 3, 4]
-    seed_to_curve = {}
+    # part 1 for value iteration
+    # seeds=[0, 1, 2, 3, 4]
+    # seed_to_curve={}
 
-    for seed in seeds:
-        np.random.seed(seed)
-        env = OnlineKnapsackEnv()
-        agent = ValueIterationOnlineKnapsack(env)
-        agent.value_iteration()
-        total_value, curve = evaluate_policy(env, agent, seed)
-        seed_to_curve[seed] = curve
-        print(f"Seed {seed}: total knapsack value = {total_value}")
+    # for seed in seeds:
+    #     np.random.seed(seed)
+    #     env=OnlineKnapsackEnv()
+    #     agent=ValueIterationOnlineKnapsack(env)
+    #     agent.value_iteration()
+    #     total_value, curve=evaluate_policy(env, agent, seed)
+    #     seed_to_curve[seed]=curve
+    #     print(f"Seed {seed}, total knapsack value={total_value}")
 
-    # trajectories
-    plot_trajectories(seed_to_curve)
+    # # trajectories
+    # plot_trajectories(seed_to_curve)
 
-    # heatmaps
-    plot_value_heatmaps(agent)
+    # # heatmaps
+    # plot_value_heatmaps(agent)
+    
+    
+    # part 2 for policy iteration
     # env=OnlineKnapsackEnv()
     # agent=PolicyIterationOnlineKnapsack(env)
     # agent.run_policy_iteration()
@@ -358,3 +347,12 @@ if __name__ == "__main__":
 
     # # Heatmaps for PI (use the last trained agent)
     # plot_value_heatmaps(pi_agent)
+    
+    # for part3, just change the env.step_limit to 5.50,100 in knapsack.py for part 3
+    np.random.seed(0)
+    env = OnlineKnapsackEnv()
+    agent = ValueIterationOnlineKnapsack(env)
+    agent.value_iteration()
+    total_value, curve = evaluate_policy(env, agent, seed=0)
+    print(f"total knapsack value={total_value}")
+    plot_value_heatmaps(agent)

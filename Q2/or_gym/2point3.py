@@ -7,7 +7,6 @@ import sys
 import copy
 import time
 import random
-
 random.seed(42)       # Set seed for Python's built-in random module
 np.random.seed(42) 
 from or_gym.envs.finance.discrete_portfolio_opt import DiscretePortfolioOptEnv
@@ -15,7 +14,7 @@ from or_gym.envs.finance.discrete_portfolio_opt import DiscretePortfolioOptEnv
 actions = np.array([-2, -1, 0, 1, 2], dtype=int)
 def _max_cash_possible(initial_cash, holding_limit, prices, horizon_length, sell_cost=1):
     max_price = np.max(prices)
-    return int(initial_cash + holding_limit * max(0, max_price - sell_cost))
+    return initial_cash + holding_limit*max(0, max_price - sell_cost)
 
 def value_iteration(prices,initial_cash,holding_limit,buy_cost,sell_cost,lot_size,gamma,max_cash_possible):
     prices=np.asarray(prices, dtype=int)
@@ -77,9 +76,9 @@ def value_iteration(prices,initial_cash,holding_limit,buy_cost,sell_cost,lot_siz
                     h2=max(0, min(h2, holding_limit))
 
                     # Evaluate
-                    if t==horizon_length - 1:
+                    if t==horizon_length-1:
                         # Terminal check
-                        cand = c2+p*(h2)
+                        cand=c2+p*(h2)
                     else:
                         # Non-terminal uses value function
                         cand=gamma*v[t+1,c2,h2]
@@ -92,10 +91,7 @@ def value_iteration(prices,initial_cash,holding_limit,buy_cost,sell_cost,lot_siz
                 policy[t,cash,holding]=best_action
 
 
-    return v, policy, max_cash_possible
-
-
-
+    return v,policy,max_cash_possible
 
 def simulate_episode(env, policy, max_cash_possible):
     state = env.reset()
@@ -150,11 +146,11 @@ def simulate_episode(env, policy, max_cash_possible):
 
 
 def plot_trajectory(ts, title, outfile):
-    t = np.arange(1, len(ts['wealth']) + 1)
-    plt.figure(figsize=(8, 4.6))
-    plt.plot(t, ts['wealth'], label='Wealth')
-    plt.plot(t, ts['cash'], label='Cash')
-    plt.plot(t, ts['holdings'], label='Holdings')
+    t=np.arange(1,len(ts['wealth'])+1)
+    plt.figure(figsize=(8,4.6))
+    plt.plot(t,ts['wealth'],label='Wealth')
+    plt.plot(t,ts['cash'],label='Cash')
+    plt.plot(t,ts['holdings'],label='Holdings')
     plt.xlabel('Time step')
     plt.ylabel('Value')
     plt.title(title)
@@ -165,9 +161,9 @@ def plot_trajectory(ts, title, outfile):
 
 
 def plot_progress(values, title, outfile):
-    x = np.arange(1, len(values) + 1)
-    plt.figure(figsize=(7.6, 4.4))
-    plt.plot(x, values, marker='o')
+    x=np.arange(1,len(values)+1)
+    plt.figure(figsize=(7.6,4.4))
+    plt.plot(x,values,marker='o')
     plt.xlabel('Episode index')
     plt.ylabel('End wealth')
     plt.title(title)
@@ -306,8 +302,8 @@ def policy_iteration_with_tracking(prices, initial_cash, holding_limit, buy_cost
     for iteration in range(max_iter):
         # Policy Evaluation
         v_prev = v.copy()   # snapshot for diff tracking
-        policy_eval_delta = float('inf')
-        while policy_eval_delta > tol: # Use tol for policy evaluation
+        policy_eval_delta=float('inf')
+        while policy_eval_delta>tol: # Use tol for policy evaluation
             policy_eval_delta = 0.0
             for t in range(horizon_length-1,-1,-1):
                 p=prices[t]
@@ -358,6 +354,10 @@ def policy_iteration_with_tracking(prices, initial_cash, holding_limit, buy_cost
 
     return v, policy, diffs
 
+def first_int(x):
+    arr=np.atleast_1d(x)
+    return arr[0]
+
 
 if __name__=="__main__":
     start_time=time.time()
@@ -366,39 +366,31 @@ if __name__=="__main__":
     ###Part 1 and Part 2
     ####Please train the value and policy iteration training algo for the given three sequences of prices
     ####Config1
-    env = DiscretePortfolioOptEnv(prices=[1, 3, 5, 5 , 4, 3, 2, 3, 5, 8])
+    # env = DiscretePortfolioOptEnv(prices=[1, 3, 5, 5 , 4, 3, 2, 3, 5, 8])
 
-    ####Config2
-    env = DiscretePortfolioOptEnv(prices=[2, 2, 2, 4 ,2, 2, 4, 2, 2, 2])
+    # ####Config2
+    # env = DiscretePortfolioOptEnv(prices=[2, 2, 2, 4 ,2, 2, 4, 2, 2, 2])
 
-    ####Config3
-    env = DiscretePortfolioOptEnv(prices=[4, 1, 4, 1 ,4, 4, 4, 1, 1, 4])
+    # ####Config3
+    # env = DiscretePortfolioOptEnv(prices=[4, 1, 4, 1 ,4, 4, 4, 1, 1, 4])
 
-
-    # Run Value Iteration on the three deterministic price sequences for both gammas
+    # Part 1: Value Iteration
+    # Running value iteration for the three configurations and two gamma values
     price_sets = [
         ("Config1", [1, 3, 5, 5, 4, 3, 2, 3, 5, 8]),
         ("Config2", [2, 2, 2, 4, 2, 2, 4, 2, 2, 2]),
         ("Config3", [4, 1, 4, 1, 4, 4, 4, 1, 1, 4]),
     ]
-
+    
     for gamma in (0.999, 1.0):
         end_wealths = []
         for cfg_name, price_seq in price_sets:
-            env_det = DiscretePortfolioOptEnv(prices=price_seq)
-            initial_cash = int(env_det.initial_cash)
-            try:
-                holding_limit = int(env_det.holding_limit[0])
-            except Exception:
-                holding_limit = int(env_det.holding_limit)
-            try:
-                buy_cost = int(env_det.buy_cost[0])
-                sell_cost = int(env_det.sell_cost[0])
-            except Exception:
-                buy_cost = int(env_det.buy_cost)
-                sell_cost = int(env_det.sell_cost)
-            lot_size = int(env_det.lot_size)
-
+            env_det=DiscretePortfolioOptEnv(prices=price_seq)
+            initial_cash=env_det.initial_cash
+            holding_limit=first_int(env_det.holding_limit)
+            buy_cost=first_int(env_det.buy_cost)
+            sell_cost=first_int(env_det.sell_cost)
+            lot_size=first_int(env_det.lot_size) 
             max_cash_possible = None
             v, policy, max_cash_possible = value_iteration(
                 prices=price_seq,
@@ -414,34 +406,28 @@ if __name__=="__main__":
             traj = simulate_episode(env_det, policy, max_cash_possible)
             end_wealths.append(float(traj['final_reward']))
 
-            # Save trajectory figure for this config/gamma
+            # Save trajectory figure
             out_file = f"vi_{cfg_name}_gamma{gamma}_trajectory.png"
-            plot_trajectory(traj, title=f"{cfg_name} – VI Trajectory (gamma={gamma})", outfile=out_file)
+            plot_trajectory(traj, title=f"{cfg_name} VI Trajectory (gamma={gamma})", outfile=out_file)
             print(f"Saved trajectory: {out_file} | Final wealth = {traj['final_reward']:.2f}")
-
-        # Progress over the configs for this gamma
+        # Save progress figure
         prog_file = f"vi_training_progress_gamma{gamma}.png"
         plot_progress(end_wealths, title=f"Value Iteration End-Wealth (gamma={gamma})", outfile=prog_file)
         
         print(f"Saved training progress: {prog_file}")
+        
+    
 
-    # Policy Iteration
+    # Part 2: Policy Iteration
     pi_start = time.time()
     for gamma in (0.999, 1.0):
         end_wealths_pi = []
         for cfg_name, price_seq in price_sets:
             env_det = DiscretePortfolioOptEnv(prices=price_seq)
             initial_cash = int(env_det.initial_cash)
-            try:
-                holding_limit = int(env_det.holding_limit[0])
-            except Exception:
-                holding_limit = int(env_det.holding_limit)
-            try:
-                buy_cost = int(env_det.buy_cost[0])
-                sell_cost = int(env_det.sell_cost[0])
-            except Exception:
-                buy_cost = int(env_det.buy_cost)
-                sell_cost = int(env_det.sell_cost)
+            holding_limit=first_int(env_det.holding_limit)
+            buy_cost=first_int(env_det.buy_cost)
+            sell_cost=first_int(env_det.sell_cost)
             lot_size = int(env_det.lot_size)
 
             v_pi, policy_pi, max_cash_possible_pi = policy_iteration(
@@ -459,7 +445,7 @@ if __name__=="__main__":
             end_wealths_pi.append(float(traj_pi['final_reward']))
 
             out_file_pi = f"pi_{cfg_name}_gamma{gamma}_trajectory.png"
-            plot_trajectory(traj_pi, title=f"{cfg_name} – PI Trajectory (gamma={gamma})", outfile=out_file_pi)
+            plot_trajectory(traj_pi, title=f"{cfg_name}  PI Trajectory (gamma={gamma})", outfile=out_file_pi)
             print(f"[PI] Saved trajectory: {out_file_pi} | Final wealth = {traj_pi['final_reward']:.2f}")
 
         prog_file_pi = f"pi_training_progress_gamma{gamma}.png"
@@ -469,25 +455,16 @@ if __name__=="__main__":
     pi_elapsed = time.time() - pi_start
     print(f"[PI] Execution time: {pi_elapsed:.3f} seconds")
 
-    # Variance 1.0 experiment WITHOUT explicit prices
-    env_var = DiscretePortfolioOptEnv(variance=1.0)
-
-    initial_cash = int(env_var.initial_cash)
-    try:
-        holding_limit = int(env_var.holding_limit[0])
-    except Exception:
-        holding_limit = int(env_var.holding_limit)
-    try:
-        buy_cost = int(env_var.buy_cost[0])
-        sell_cost = int(env_var.sell_cost[0])
-    except Exception:
-        buy_cost = int(env_var.buy_cost)
-        sell_cost = int(env_var.sell_cost)
-    lot_size = int(env_var.lot_size)
-
-    # Use the environment's auto-generated price trajectory
-    prices_var = env_var.asset_prices[0]
-    print("Generated stochastic prices:", prices_var)
+    # Part 3 of the question
+    env_var=DiscretePortfolioOptEnv(variance=1.0)
+    initial_cash=env_var.initial_cash
+    holding_limit=first_int(env_var.holding_limit)
+    buy_cost=first_int(env_var.buy_cost)
+    sell_cost=first_int(env_var.sell_cost)
+    lot_size=first_int(env_var.lot_size) 
+    lot_size=env_var.lot_size
+    prices_var=env_var.asset_prices[0]
+    print("Generated prices:", prices_var)
 
     v_var, policy_var, diffs_var = policy_iteration_with_tracking(
         prices=prices_var,
@@ -509,15 +486,21 @@ if __name__=="__main__":
     print("Saved convergence plot for variance=1.0 as pi_convergence_variance1.png")
     
     best_v0 = v_var[0, min(len(v_var[0]) - 1, initial_cash), 0]   # value of initial state
-    pi_end_wealth = simulate_episode(env_var, policy_var, max_cash_possible=max_cash_possible_pi)['final_reward']
+    # Re‑compute a correct cash bound for the stochastic price path
+    max_cash_possible_var = _max_cash_possible(initial_cash, holding_limit, prices_var, len(prices_var))
+    pi_end_wealth = simulate_episode(env_var, policy_var, max_cash_possible=max_cash_possible_var)['final_reward']
 
-    print("\n==========  VARIANCE = 1.0  (single stochastic trajectory)  ==========")
-    print(f"Initial cash                       : {initial_cash}")
-    print(f"Price path                         : {prices_var.tolist()}")
-    print(f"Best V[0, cash=20, holding=0]      : {best_v0:.2f}")
-    print(f"End wealth following PI policy     : {pi_end_wealth:.2f}")
-    print(f"Iterations until policy stable     : {len(diffs_var)}")
-    print(f"Max-value-diff per iteration (≤5)  : {[round(x,4) for x in diffs_var[:5]]} ...")
+    print("\nPolicy Iteration with Variance=1.0 Results:")
+    print(f"Initial cash:{initial_cash}")
+    print(f"Price path:{prices_var.tolist()}")
+    print(f"Holding limit:{holding_limit}")
+    print(f"Buy cost:{buy_cost}")
+    print(f"Sell cost:{sell_cost}")
+    
+    print(f"Best V[0, cash=20, holding=0:{best_v0:.2f}")
+    print(f"End wealth following PI policy:{pi_end_wealth:.2f}")
+    print(f"Iterations until policy stable:{len(diffs_var)}")
+    print(f"Max-value-diff per iteration (≤5):{[round(x,4) for x in diffs_var[:5]]} ...")
 
     ###Part 3. (Portfolio Optimizaton)
 # env = DiscretePortfolioOptEnv(variance=1)
