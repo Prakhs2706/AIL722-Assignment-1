@@ -3,226 +3,167 @@ import numpy as np
 import heapq
 from collections import defaultdict
 
-# -----------------------------
-# Utilities and global counters
-# -----------------------------
-
-def terminal_check(s):
-    # s is a tuple (x, y, has_shot)
-    return s[2] == 1
-
 transition_call_counter = defaultdict(int)
 
-# ------------------------------------------------------
-# Plain-dict transition storage and predecessor mapping
-# ------------------------------------------------------
-# transitions[(s_idx, a)] -> list of tuples (p, ns_idx, r, term)
-# predecessors[ns_idx] -> set of s_idx that can reach ns_idx under some action
+def terminal_check(s):
+        return s[2]==1
+    
+def get_transitions(env, s_idx, a, trans_dict, pred_dict, counter_key):
+        # avoids repeated calls to env
+        # as env is stationary, we can cache transitions   
+        key=(s_idx, a)
+        if key in trans_dict:
+            return trans_dict[key]
+        s=env.index_to_state(s_idx)
+        transition_call_counter[counter_key]+=1
+        raw=env.get_transitions_at_time(s, a)
+        sx,sy, _=s
+        cooked=[]
+        for p, s_next in raw:
+            ns_idx = env.state_to_index(s_next)
+            nx, ny, _ = s_next
+            r = env._get_reward((nx, ny), a, (sx, sy))
+            term=terminal_check(s_next)
+            cooked.append((p, ns_idx, r, term))
+            pred_dict[ns_idx].add(s_idx)
+        trans_dict[key] = cooked
+        return cooked
+    
+def bellman_max_q(env,s_idx,num_actions,v, trans_dict,pred_dict,gamma):
+        best_q = -float('inf')
+        for a in range(num_actions):
+            q=0.0
+            for p, ns_idx, r, term in get_transitions(env, s_idx, a, trans_dict, pred_dict, 'vi_updated'):
+                v_next=0.0 if term else v[ns_idx]
+                q+=p*(r+gamma*v_next)
+            if q>best_q:
+                best_q=q
+        return best_q
 
-def _state_index(env, s):
-    return env.state_to_index(s)
+def value_iteration(envr=FootballSkillsEnv):
+    # heap is defined over negative residuals to make it a max-heap
+    heap=[]  # (-residual, state_index)
+    gamma=0.95
+    threshold=1e-6
+    env=envr(render_mode="gif")
+    num_states=env.grid_size*env.grid_size*2
+    num_actions=env.action_space.n
+    v=np.zeros(num_states, dtype=float)
+    transitions={}
+    predecessors=defaultdict(set)
 
-
-def get_transitions(env, s_idx, a, transitions, predecessors, gamma, counter_key):
-    """Fetch transitions for (s_idx, a) into a plain dict once. Counts env calls only once per key.
-    Returns list[(p, ns_idx, r, term)].
-    """
-    key = (s_idx, a)
-    if key in transitions:
-        return transitions[key]
-
-    s = env.index_to_state(s_idx)
-    if counter_key is not None:
-        transition_call_counter[counter_key] += 1
-    raw = env.get_transitions_at_time(s, a)
-    sx, sy, _ = s
-    cooked = []
-    for p, s_next in raw:
-        ns_idx = _state_index(env, s_next)
-        nx, ny, _ = s_next
-        r = env._get_reward((nx, ny), a, (sx, sy))
-        term = terminal_check(s_next)
-        cooked.append((p, ns_idx, r, term))
-        predecessors[ns_idx].add(s_idx)
-    transitions[key] = cooked
-    return cooked
-
-
-def bellman_backup_max_q(env, s_idx, num_actions, V, transitions, predecessors, gamma, counter_key):
-    best_q = -float('inf')
-    for a in range(num_actions):
-        q = 0.0
-        for p, ns_idx, r, term in get_transitions(env, s_idx, a, transitions, predecessors, gamma, counter_key):
-            v_next = 0.0 if term else V[ns_idx]
-            q += p * (r + gamma * v_next)
-        if q > best_q:
-            best_q = q
-    return best_q
-
-# -----------------------------------------
-# Baseline Value Iteration (for comparison)
-# -----------------------------------------
-
-def value_iteration_basic(envr=FootballSkillsEnv, gamma=0.95, threshold=1e-6):
-    env = envr(render_mode="gif")
-    num_states = env.grid_size * env.grid_size * 2
-    num_actions = env.action_space.n
-
-    V = np.zeros(num_states, dtype=float)
-
-    # Plain dicts
-    transitions = {}
-    predecessors = defaultdict(set)
-    counter_key = 'vi_basic'
-
-    iters = 0
-    while True:
-        iters += 1
-        delta = 0.0
-        for s_idx in range(num_states):
-            s = env.index_to_state(s_idx)
-            if terminal_check(s):
-                if V[s_idx] != 0.0:
-                    delta = max(delta, abs(V[s_idx]))
-                    V[s_idx] = 0.0
-                continue
-            best_q = bellman_backup_max_q(env, s_idx, num_actions, V, transitions, predecessors, gamma, counter_key)
-            delta = max(delta, abs(best_q - V[s_idx]))
-            V[s_idx] = best_q
-        if delta < threshold:
-            break
-
-    # Greedy policy extraction
-    policy = np.full(num_states, -1, dtype=int)
     for s_idx in range(num_states):
-        s = env.index_to_state(s_idx)
+        s=env.index_to_state(s_idx)
         if terminal_check(s):
             continue
-        best_a, best_q = 0, -float('inf')
-        for a in range(num_actions):
-            q = 0.0
-            for p, ns_idx, r, term in get_transitions(env, s_idx, a, transitions, predecessors, gamma, None):
-                v_next = 0.0 if term else V[ns_idx]
-                q += p * (r + gamma * v_next)
-            if q > best_q:
-                best_q, best_a = q, a
-        policy[s_idx] = best_a
+        res=abs(bellman_max_q(env, s_idx, num_actions, v, transitions, predecessors, gamma)-v[s_idx])
+        if res>threshold:
+            heapq.heappush(heap, (-res, s_idx))
+    updates=0
+    in_heap=np.zeros(num_states, dtype=bool)
+    for _, s_idx in heap:
+        in_heap[s_idx]=True
 
-    return policy, V, iters
-
-# -----------------------------------------------------
-# Modified VI: Prioritized (Residual-Driven) with dicts
-# -----------------------------------------------------
-
-def value_iteration_prioritized(envr=FootballSkillsEnv, gamma=0.95, threshold=1e-6):
-    env = envr(render_mode="gif")
-    num_states = env.grid_size * env.grid_size * 2
-    num_actions = env.action_space.n
-
-    V = np.zeros(num_states, dtype=float)
-
-    # Plain dicts only
-    transitions = {}
-    predecessors = defaultdict(set)
-    counter_key = 'vi_mod'
-
-    def residual(s_idx):
-        s = env.index_to_state(s_idx)
-        if terminal_check(s):
-            return 0.0
-        best_q = bellman_backup_max_q(env, s_idx, num_actions, V, transitions, predecessors, gamma, counter_key)
-        return abs(best_q - V[s_idx])
-
-    # Seed with only the start state (avoid touching all states up front)
-    heap = []  # (-residual, s_idx)
-    in_heap = np.zeros(num_states, dtype=bool)
-    start_obs, _ = env.reset(seed=0)
-    start_idx = env.state_to_index(start_obs)
-    if not terminal_check(start_obs):
-        res0 = residual(start_idx)
-        if res0 > threshold:
-            heapq.heappush(heap, (-res0, start_idx))
-            in_heap[start_idx] = True
-
-    updates = 0
     while heap:
-        neg_res, s_idx = heapq.heappop(heap)
-        in_heap[s_idx] = False
-        cur_res = -neg_res
-        # Recompute to avoid staleness
-        new_res = residual(s_idx)
-        if new_res + 1e-12 < cur_res and new_res > threshold:
-            heapq.heappush(heap, (-new_res, s_idx))
-            in_heap[s_idx] = True
+        _, s_idx = heapq.heappop(heap)
+        in_heap[s_idx]=False
+        # if residual has dropped below threshold, skip
+        current_res=abs(bellman_max_q(env, s_idx, num_actions, v, transitions, predecessors, gamma)-v[s_idx])
+        if current_res<threshold:
             continue
-        if new_res <= threshold:
-            continue
-
-        # Backup
-        s = env.index_to_state(s_idx)
-        if not terminal_check(s):
-            V[s_idx] = bellman_backup_max_q(env, s_idx, num_actions, V, transitions, predecessors, gamma, counter_key)
-            updates += 1
-
-        # Also consider successors of s_idx to grow the explored set forward
-        for a in range(num_actions):
-            for p, ns_idx, r, term in get_transitions(env, s_idx, a, transitions, predecessors, gamma, counter_key):
-                if terminal_check(env.index_to_state(ns_idx)):
-                    continue
-                res_succ = residual(ns_idx)
-                if res_succ > threshold and not in_heap[ns_idx]:
-                    heapq.heappush(heap, (-res_succ, ns_idx))
-                    in_heap[ns_idx] = True
-
-        # Recompute residuals for predecessors only (already tracked in dict)
-        for pred in predecessors.get(s_idx, ()):  # states that can reach s_idx
+        # else backup
+        v[s_idx]=bellman_max_q(env, s_idx, num_actions, v, transitions, predecessors, gamma)
+        updates+=1
+        # push predecessors into heap
+        for pred in predecessors[s_idx]:
             if terminal_check(env.index_to_state(pred)):
                 continue
-            res = residual(pred)
-            if res > threshold and not in_heap[pred]:
+            res=abs(bellman_max_q(env, pred, num_actions, v, transitions, predecessors, gamma) - v[pred])
+            if res>threshold and not in_heap[pred]:
                 heapq.heappush(heap, (-res, pred))
                 in_heap[pred] = True
 
-    # Greedy policy
+    # greedy policy extraction using cached transitions (does not call env again) and saves calls
     policy = np.full(num_states, -1, dtype=int)
     for s_idx in range(num_states):
-        s = env.index_to_state(s_idx)
+        s=env.index_to_state(s_idx)
         if terminal_check(s):
             continue
         best_a, best_q = 0, -float('inf')
         for a in range(num_actions):
-            q = 0.0
-            for p, ns_idx, r, term in get_transitions(env, s_idx, a, transitions, predecessors, gamma, None):
-                v_next = 0.0 if term else V[ns_idx]
-                q += p * (r + gamma * v_next)
-            if q > best_q:
-                best_q, best_a = q, a
-        policy[s_idx] = best_a
+            q=0.0
+            for p, ns_idx, r, term in transitions[(s_idx, a)]:
+                v_next=0.0 if term else v[ns_idx]
+                q+=p*(r+gamma*v_next)
+            if q>best_q:
+                best_q, best_a=q, a
+        policy[s_idx]=best_a
 
-    return policy, V, updates
+    return policy, v, updates, transition_call_counter['vi_updated']
 
-# -----------------
-# Command-line run
-# -----------------
-if __name__ == "__main__":
-    # Baseline VI
-    pi_basic, V_basic, it_basic = value_iteration_basic()
-    calls_basic = transition_call_counter['vi_basic']
+        
+        
+def vanilla_value_iteration(envr=FootballSkillsEnv):
+    env=envr(render_mode="gif")
+    gamma=0.95
+    threshold=1e-6
+    num_states=env.grid_size*env.grid_size*2
+    num_actions=env.action_space.n
+    # value function initialization
+    v=np.zeros(num_states, dtype=float)
+    policy=np.full(num_states, -1, dtype=int)  # will be filled on the fly
 
-    # Prioritized VI
-    pi_mod, V_mod, it_mod = value_iteration_prioritized()
-    calls_mod = transition_call_counter['vi_mod']
+    iterations=0
+    while True:
+        iterations+=1
+        delta=0.0
+        for s in range(num_states):
+            state=env.index_to_state(s)
+            # value for terminal states again 0
+            if terminal_check(state):
+                v[s] = 0.0
+                continue
+            sx, sy, _ = state
+            best_q_function=-float('inf')
+            best_action = -1
 
-    print("=== Baseline Value Iteration ===")
-    print(f"Iterations (sweeps): {it_basic}")
-    print(f"Total env.get_transitions_at_time calls: {calls_basic}")
+            for action in range(num_actions):
+                q_function=0.0
+                transition_call_counter["vi"]+=1
+                transitions=env.get_transitions_at_time(state, action)
+                for p, s_next in transitions:
+                    nx, ny, _ =s_next
+                    r=env._get_reward((nx, ny), action, (sx, sy))
+                    if terminal_check(s_next):
+                        v_next = 0.0
+                    else:
+                        v_next=v[env.state_to_index(s_next)]
+                    q_function+=p*(r+gamma*v_next)
+                if q_function>best_q_function:
+                    best_q_function=q_function
+                    best_action=action
 
-    print("\n=== Prioritized Value Iteration ===")
-    print(f"State updates performed: {it_mod}")
-    print(f"Total env.get_transitions_at_time calls: {calls_mod}")
+            delta=max(delta,abs(best_q_function-v[s]))
+            v[s]=best_q_function
+            # update greedy policy on the fly (same sweep)
+            policy[s]=best_action if not terminal_check(state) else -1
 
-    same_policy = np.array_equal(pi_basic, pi_mod)
-    print("\nPolicies equal? ", same_policy)
-    if not same_policy:
-        diff = np.where(pi_basic != pi_mod)[0][:10]
-        print("First differing state indices:", diff)
+        if delta<threshold:
+            break
+    
+    return policy, v, iterations
+
+if __name__=="__main__":
+    policy, v, updates, trans_calls = value_iteration()
+    print("Number of updates:", updates)
+    print("Number of trans calls", trans_calls)
+    policy_vanilla, v_vanilla, iters = vanilla_value_iteration()
+    print("Vanilla iters:", iters)
+    print("number of vanilla trans calls:", transition_call_counter['vi'])
+    if np.all(policy==policy_vanilla):
+        print("Policies match")
+    else:
+        print("Policies do not match")
+    
+
+    

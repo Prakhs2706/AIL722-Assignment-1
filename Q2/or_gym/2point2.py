@@ -306,47 +306,47 @@ def plot_value_heatmaps(agent):
 
 if __name__ == "__main__":
     # part 1 for value iteration
-    # seeds=[0, 1, 2, 3, 4]
-    # seed_to_curve={}
+    seeds=[0, 1, 2, 3, 4]
+    seed_to_curve={}
 
-    # for seed in seeds:
-    #     np.random.seed(seed)
-    #     env=OnlineKnapsackEnv()
-    #     agent=ValueIterationOnlineKnapsack(env)
-    #     agent.value_iteration()
-    #     total_value, curve=evaluate_policy(env, agent, seed)
-    #     seed_to_curve[seed]=curve
-    #     print(f"Seed {seed}, total knapsack value={total_value}")
+    for seed in seeds:
+        np.random.seed(seed)
+        env=OnlineKnapsackEnv()
+        agent=ValueIterationOnlineKnapsack(env)
+        agent.value_iteration()
+        total_value, curve=evaluate_policy(env, agent, seed)
+        seed_to_curve[seed]=curve
+        print(f"Seed {seed}, total knapsack value={total_value}")
 
-    # # trajectories
-    # plot_trajectories(seed_to_curve)
+    # trajectories
+    plot_trajectories(seed_to_curve)
 
-    # # heatmaps
-    # plot_value_heatmaps(agent)
+    # heatmaps
+    plot_value_heatmaps(agent)
     
     
     # part 2 for policy iteration
-    # env=OnlineKnapsackEnv()
-    # agent=PolicyIterationOnlineKnapsack(env)
-    # agent.run_policy_iteration()
-    #     # Policy iteraton evals for different seeds
-    # seeds = [0, 1, 2, 3, 4]
-    # pi_seed_to_curve = {}
+    env=OnlineKnapsackEnv()
+    agent=PolicyIterationOnlineKnapsack(env)
+    agent.run_policy_iteration()
+        # Policy iteraton evals for different seeds
+    seeds = [0, 1, 2, 3, 4]
+    pi_seed_to_curve = {}
 
-    # for seed in seeds:
-    #     np.random.seed(seed)
-    #     env = OnlineKnapsackEnv()
-    #     pi_agent = PolicyIterationOnlineKnapsack(env)
-    #     pi_agent.run_policy_iteration()
-    #     total_value, curve = evaluate_policy(env, pi_agent, seed)
-    #     pi_seed_to_curve[seed] = curve
-    #     print(f"[PI] Seed {seed}: total knapsack value = {total_value}")
+    for seed in seeds:
+        np.random.seed(seed)
+        env = OnlineKnapsackEnv()
+        pi_agent = PolicyIterationOnlineKnapsack(env)
+        pi_agent.run_policy_iteration()
+        total_value, curve = evaluate_policy(env, pi_agent, seed)
+        pi_seed_to_curve[seed] = curve
+        print(f"[PI] Seed {seed}: total knapsack value = {total_value}")
 
-    # # Trajectories for PI
-    # plot_trajectories(pi_seed_to_curve)
+    # Trajectories for PI
+    plot_trajectories(pi_seed_to_curve)
 
-    # # Heatmaps for PI (use the last trained agent)
-    # plot_value_heatmaps(pi_agent)
+    # Heatmaps for PI (use the last trained agent)
+    plot_value_heatmaps(pi_agent)
     
     # for part3, just change the env.step_limit to 5.50,100 in knapsack.py for part 3
     np.random.seed(0)

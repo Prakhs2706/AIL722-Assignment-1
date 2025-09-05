@@ -221,7 +221,7 @@ def value_iteration(envr=FootballSkillsEnv):
 def run_episode_using_policy(policy,seed,envr=FootballSkillsEnv):
     
     env=envr(render_mode="gif")
-    obs, _ = env.reset(seed=seed)
+    obs, _=env.reset(seed=seed)
     total_reward=0.0
     done=False
     truncated=False
@@ -249,7 +249,7 @@ def evaluate_policy(policy, starting_seed, envr=FootballSkillsEnv, num_episodes=
     return mean, std, rewards_across_episodes
 
 def save_policy_gif(policy, filename, seed, envr=FootballSkillsEnv):
-    env = envr(render_mode="gif")
+    env=envr(render_mode="gif")
     env.get_gif(policy, filename=filename, seed=seed)
 
 
